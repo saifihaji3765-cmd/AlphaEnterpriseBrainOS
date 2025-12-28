@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: Alpha Enterprise Brain OS
-    env: docker
-    plan: free
-    region: oregon
-    dockerfilePath: ./Dockerfile
-    buildCommand: docker build -t alpha-enterprise .
-    startCommand: docker run -p 8000:8000 alpha-enterprise
