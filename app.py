@@ -1,134 +1,103 @@
+from flask import Flask, request, jsonify, render_template_string
 import os
-from flask import Flask, request, jsonify, render_template
-from openai import OpenAI
+import openai
 
-# -----------------------
-# App Init
-# -----------------------
+# Flask app
 app = Flask(__name__)
 
-# -----------------------
-# OpenAI Client
-# -----------------------
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+# OpenAI Key from Vercel Environment Variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# -----------------------
-# Home Page (UI)
-# -----------------------
+# ---------- HOME PAGE ----------
 @app.route("/")
 def home():
-    return """
+    return render_template_string("""
     <html>
     <head>
         <title>FutureGuard AI</title>
         <style>
             body {
-                font-family: Arial;
-                background: #0f172a;
-                color: white;
-                text-align: center;
-                padding: 50px;
-            }
-            textarea {
-                width: 80%;
-                height: 120px;
-                border-radius: 8px;
-                padding: 10px;
+                background:#0f172a;
+                color:white;
+                font-family:Arial;
+                text-align:center;
+                padding-top:80px;
             }
             button {
-                margin-top: 20px;
-                padding: 12px 30px;
-                background: #22c55e;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                cursor: pointer;
-            }
-            pre {
-                text-align: left;
-                background: #020617;
-                padding: 20px;
-                border-radius: 8px;
-                margin-top: 30px;
-                white-space: pre-wrap;
+                padding:12px 20px;
+                background:#22c55e;
+                border:none;
+                border-radius:6px;
+                font-size:16px;
+                cursor:pointer;
             }
         </style>
     </head>
     <body>
         <h1>🚀 FutureGuard AI</h1>
-        <p>Enterprise Risk & Decision Intelligence</p>
-
-        <textarea id="input" placeholder="Enter business situation / risk / problem..."></textarea><br>
-        <button onclick="analyze()">Analyze</button>
-
-        <pre id="result"></pre>
-
-        <script>
-            async function analyze() {
-                const text = document.getElementById("input").value;
-                const res = await fetch("/analyze", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({input: text})
-                });
-                const data = await res.json();
-                document.getElementById("result").innerText = data.result;
-            }
-        </script>
+        <p>Predict Risks • Get Warnings • Take Action</p>
+        <button onclick="alert('API Ready. Use /analyze endpoint')">
+            System Ready
+        </button>
     </body>
     </html>
-    """
+    """)
 
-# -----------------------
-# AI Brain Endpoint
-# -----------------------
+# ---------- HEALTH CHECK ----------
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "ok",
+        "system": "FutureGuard AI",
+        "engine": "running"
+    })
+
+# ---------- CORE AI ENDPOINT ----------
 @app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.json
-    user_input = data.get("input", "")
 
-    if not user_input:
-        return jsonify({"error": "No input provided"})
+    if not data or "problem" not in data:
+        return jsonify({"error": "Problem description required"}), 400
+
+    problem = data["problem"]
 
     prompt = f"""
-You are FutureGuard AI, an enterprise-grade AI system.
+You are a senior AI business doctor.
 
-TASK:
-1. Identify business risks
-2. Predict future impact
-3. Give clear warnings
-4. Suggest actionable steps
+Company Problem:
+{problem}
 
-INPUT:
-{user_input}
+Your task:
+1. Identify future risks
+2. Predict what can go wrong soon
+3. Give clear warning signals
+4. Provide step-by-step actions to fix it
 
-OUTPUT FORMAT:
-- Risk Level:
-- Key Threats:
-- Future Prediction:
-- Recommended Actions:
+Answer in simple, professional language.
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a high-level enterprise AI strategist."},
+                {"role": "system", "content": "You are FutureGuard AI."},
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            temperature=0.3
         )
 
         result = response.choices[0].message.content
 
-        return jsonify({"result": result})
+        return jsonify({
+            "input_problem": problem,
+            "future_analysis": result
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"error": str(e)}), 500
 
-# -----------------------
-# Run Local
-# -----------------------
+
+# ---------- RUN ----------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
