@@ -1,102 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>FutureGuard AI</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>FutureGuard AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #0f172a, #020617);
-            color: #e5e7eb;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: auto;
-            padding: 40px 20px;
-        }
-
-        h1 {
-            font-size: 32px;
-            margin-bottom: 5px;
-        }
-
-        .tagline {
-            color: #94a3b8;
-            margin-bottom: 30px;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 15px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: none;
-            outline: none;
-            resize: vertical;
-        }
-
-        button {
-            margin-top: 15px;
-            padding: 12px 30px;
-            font-size: 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            background: #2563eb;
-            color: white;
-        }
-
-        button:hover {
-            background: #1d4ed8;
-        }
-
-        .result-card {
-            margin-top: 30px;
-            background: rgba(15, 23, 42, 0.9);
-            padding: 25px;
-            border-radius: 10px;
-            border-left: 6px solid #ef4444;
-            white-space: pre-wrap;
-        }
-
-        .risk-high {
-            border-left-color: #ef4444;
-        }
-
-        .risk-medium {
-            border-left-color: #facc15;
-        }
-
-        .risk-low {
-            border-left-color: #22c55e;
-        }
-
-        .footer {
-            margin-top: 40px;
-            text-align: center;
-            font-size: 14px;
-            color: #64748b;
-        }
-    </style>
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #0f172a, #020617);
+    color: #e5e7eb;
+}
+.container {
+    max-width: 900px;
+    margin: auto;
+    padding: 40px 20px;
+}
+textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 15px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+}
+button {
+    margin-top: 15px;
+    padding: 12px 30px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #2563eb;
+    color: white;
+}
+.result-card {
+    margin-top: 30px;
+    background: rgba(15,23,42,0.9);
+    padding: 25px;
+    border-radius: 10px;
+    border-left: 6px solid #ef4444;
+    white-space: pre-wrap;
+}
+.footer {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 14px;
+    color: #64748b;
+}
+</style>
 </head>
 
 <body>
 <div class="container">
     <h1>FutureGuard AI</h1>
-    <div class="tagline">Predict Risks • Get Warnings • Take Action</div>
+    <p>Predict Risks • Get Warnings • Take Action</p>
 
     <form id="analyzeForm">
-        <textarea id="problem" placeholder="Describe your business problem..."></textarea>
-        <br>
+        <textarea id="problem" placeholder="Describe your business problem..."></textarea><br>
         <button type="submit">Analyze</button>
     </form>
 
     <div id="result" class="result-card" style="display:none;"></div>
+
+    <form id="pdfForm" action="/download-pdf" method="POST" style="display:none;">
+        <input type="hidden" name="problem" id="pdfProblem">
+        <input type="hidden" name="result" id="pdfResult">
+        <button type="submit">Download PDF Report</button>
+    </form>
 
     <div class="footer">
         © 2025 FutureGuard AI — Enterprise Risk Intelligence
@@ -104,38 +76,29 @@
 </div>
 
 <script>
-document.getElementById("analyzeForm").addEventListener("submit", async function(e) {
+document.getElementById("analyzeForm").addEventListener("submit", async function(e){
     e.preventDefault();
 
     const problem = document.getElementById("problem").value;
     const resultDiv = document.getElementById("result");
+    const pdfForm = document.getElementById("pdfForm");
 
     resultDiv.style.display = "block";
-    resultDiv.innerText = "Analyzing business risks...";
+    resultDiv.innerText = "Analyzing...";
 
     const response = await fetch("/analyze", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
         body: "problem=" + encodeURIComponent(problem)
     });
 
     const data = await response.json();
 
-    if (data.result) {
-        resultDiv.innerText = data.result;
+    resultDiv.innerText = data.result;
+    pdfForm.style.display = "block";
 
-        if (data.result.includes("RISK LEVEL: HIGH")) {
-            resultDiv.className = "result-card risk-high";
-        } else if (data.result.includes("RISK LEVEL: MEDIUM")) {
-            resultDiv.className = "result-card risk-medium";
-        } else if (data.result.includes("RISK LEVEL: LOW")) {
-            resultDiv.className = "result-card risk-low";
-        }
-    } else {
-        resultDiv.innerText = "Error analyzing problem.";
-    }
+    document.getElementById("pdfProblem").value = problem;
+    document.getElementById("pdfResult").value = data.result;
 });
 </script>
 
