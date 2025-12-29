@@ -1,65 +1,79 @@
-from flask import Flask, request, jsonify, render_template
-import os
-from openai import OpenAI
+from flask import Flask, render_template, request, redirect, session, jsonify
 
 app = Flask(__name__)
+app.secret_key = "futureguard_login_secret"
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# ---------------- LOGIN ----------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email")
 
-SYSTEM_PROMPT = """
-You are FutureGuard AI, a multilingual enterprise risk and decision assistant.
+        # SIMPLE PAID LOGIC
+        # (future me payment ke baad true hoga)
+        if email.endswith("@company.com"):
+            session["paid"] = True
+        else:
+            session["paid"] = False
 
-Your responsibilities:
-1. Detect the user's language automatically and reply in the same language.
-2. Detect business size (small business / startup / enterprise).
-3. Analyze the business problem deeply.
-4. Give structured output:
+        session["user"] = email
+        return redirect("/")
 
-RISK LEVEL: LOW / MEDIUM / HIGH
+    return render_template("login.html")
 
-KEY ISSUES:
-- Bullet points
 
-WARNINGS:
-- Predict near-future risks if no action is taken
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
 
-RECOMMENDED ACTIONS:
-- Clear, practical actions
 
-DECISION PRIORITY:
-- Immediate / Short-term / Long-term
-
-Rules:
-- Never say you are an AI model.
-- Be confident, professional, and practical.
-"""
-
-@app.route("/", methods=["GET"])
+# ---------------- HOME ----------------
+@app.route("/")
 def home():
-    return render_template("index.html")
+    if "user" not in session:
+        return redirect("/login")
 
+    return render_template("index.html", paid=session.get("paid", False))
+
+
+# ---------------- ANALYZE API ----------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    try:
-        problem = request.form.get("problem")
+    if "user" not in session:
+        return jsonify({"result": "Please login first."})
 
-        if not problem:
-            return jsonify({"error": "No input provided"})
+    problem = request.form.get("problem", "")
+    paid = session.get("paid", False)
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": problem}
-            ],
-            temperature=0.4
-        )
+    if paid:
+        level = "HIGH"
+        extra = "- Detailed strategic actions included."
+    else:
+        level = "MEDIUM"
+        extra = "- Upgrade to PRO for detailed insights."
 
-        result = response.choices[0].message.content
-        return jsonify({"result": result})
+    result = f"""
+RISK LEVEL: {level}
 
-    except Exception as e:
-        return jsonify({"error": str(e)})
+KEY ISSUES:
+- Cost pressure and efficiency gaps.
+- Competitive and operational risks.
+
+WARNINGS:
+- Delayed action may increase losses.
+
+RECOMMENDED ACTIONS:
+- Immediate cost review.
+- Process optimization.
+{extra}
+
+ANALYZED PROBLEM:
+{problem}
+"""
+
+    return jsonify({"result": result})
+
 
 if __name__ == "__main__":
     app.run(debug=True)
