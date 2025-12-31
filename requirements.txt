@@ -3,3 +3,4 @@ openai
 gunicorn
 python-dotenv
 reportlab
+supabase
