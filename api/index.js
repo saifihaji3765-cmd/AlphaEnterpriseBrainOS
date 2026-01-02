@@ -1,68 +1,81 @@
 import express from "express";
 import cors from "cors";
-import { createClient } from "@supabase/supabase-js";
-import OpenAI from "openai";
+import jwt from "jsonwebtoken";
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-// ENV
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const USERS = []; // temporary in-memory users
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// ✅ TEST
-app.get("/", (req, res) => {
-  res.json({ status: "Alpha Brain OS Backend LIVE 🚀" });
+// ✅ HEALTH CHECK
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "Rehman Future Guard Backend LIVE 🚀"
+  });
 });
 
 // ✅ SIGNUP
-app.post("/signup", async (req, res) => {
+app.post("/api/signup", (req, res) => {
   const { email, password } = req.body;
 
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email & password required" });
+  }
 
-  if (error) return res.status(400).json({ error: error.message });
+  const exists = USERS.find(u => u.email === email);
+  if (exists) {
+    return res.status(400).json({ error: "User already exists" });
+  }
 
-  res.json({ success: true });
+  USERS.push({ email, password });
+
+  res.json({ message: "Signup successful" });
 });
 
 // ✅ LOGIN
-app.post("/login", async (req, res) => {
+app.post("/api/login", (req, res) => {
   const { email, password } = req.body;
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const user = USERS.find(
+    u => u.email === email && u.password === password
+  );
 
-  if (error) return res.status(401).json({ error: error.message });
+  if (!user) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
 
-  res.json({ success: true, user: data.user });
+  const token = jwt.sign(
+    { email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.json({ token });
 });
 
-// ✅ AI CHAT
-app.post("/ai", async (req, res) => {
-  const { prompt } = req.body;
+// ✅ PROTECTED TEST API
+app.get("/api/secure", (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth) {
+    return res.status(401).json({ error: "No token" });
+  }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-  });
+  try {
+    const decoded = jwt.verify(
+      auth.split(" ")[1],
+      process.env.JWT_SECRET
+    );
 
-  res.json({
-    reply: response.choices[0].message.content,
-  });
+    res.json({
+      message: "Protected data access granted ✅",
+      user: decoded.email
+    });
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+  }
 });
 
 export default app;
